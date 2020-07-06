@@ -174,11 +174,16 @@ class syntax_plugin_addnewpage extends DokuWiki_Syntax_Plugin {
         if($this->getConf('addpage_showroot') && $can_create) {
             if(empty($dest_ns)) {
                 // If no namespace has been provided, add an option for the root NS.
-                $ret .= '<option ' . (($currentns == '') ? 'selected ' : '') . 'value="">' . $this->getLang('namespaceRoot') . '</option>';
+                $ret .= '<option ' . (($currentns == '') ? 'selected ' : '') . 'value="">' .
+                    formText($this->getNamespaceName(':')) .
+                    '</option>';
                 $someopt = true;
             } else {
                 // If a namespace has been provided, add an option for it.
-                $ret .= '<option ' . (($currentns == $dest_ns) ? 'selected ' : '') . 'value="' . formText($dest_ns) . '">' . formText($dest_ns) . '</option>';
+                $ret .= '<option ' .
+                    (($currentns == $dest_ns) ? 'selected ' : '') . 'value="' . formText($dest_ns) . '">' .
+                    formText($this->getNamespaceName($dest_ns.':')) .
+                    '</option>';
                 $someopt = true;
             }
         }
@@ -205,7 +210,8 @@ class syntax_plugin_addnewpage extends DokuWiki_Syntax_Plugin {
             for ($i = $first_unprinted_depth, $end = count($nsparts); $i <= $end; $i++) {
                 $namespace = implode(':', array_slice($nsparts, 0, $i));
                 array_push($ancestor_stack, $namespace);
-                $selectOptionText = str_repeat('&nbsp;&nbsp;', substr_count($namespace, ':')) . $nsparts[$i - 1];
+                $selectOptionText = str_repeat('&nbsp;&nbsp;', substr_count($namespace, ':') + 1) .
+                    formText($this->getNamespaceName($namespace.':'));
                 $ret .= '<option ' .
                     (($currentns == $namespace) ? 'selected ' : '') .
                     ($i == $end? ('value="' . $namespace . '">') : 'disabled>') .
@@ -223,6 +229,48 @@ class syntax_plugin_addnewpage extends DokuWiki_Syntax_Plugin {
         } else {
             return false;
         }
+    }
+
+    public static function getNamespacePageId(string $id) : string
+    {
+        $namespace = rtrim($id, ':');
+        $exists = null;
+        resolve_pageid($namespace, $id, $exists);
+        return
+            $exists ?
+                (!$namespace ?
+                    ':'.$id :
+                    $id) :
+                '';
+    }
+
+    public function getNamespaceName(string $id)
+    {
+        global $conf;
+        $useHeading = $conf['useheading'];
+        if ($useHeading &&
+            $useHeading !== '0')
+        {
+            $pageId = syntax_plugin_addnewpage::getNamespacePageId($id);
+            if ($pageId)
+                $name = p_get_first_heading($pageId);
+        }
+        if (!$name)
+        {
+            if ($id === ':')
+                $name = $this->getLang('namespaceRoot');
+            else
+            {
+                $name = rtrim($id, ':');
+                $index = strrpos($name, ':');
+                if ($index !== false &&
+                    $index >= 0)
+                {
+                    $name = substr($name, $index + 1);
+                }
+            }
+        }
+        return $name;
     }
 
     /**
